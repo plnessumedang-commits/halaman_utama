@@ -231,7 +231,6 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       color: white; padding: 25px; border-radius: 10px; margin-bottom: 25px;
     }
     .dashboard-header h2 { color: white; font-size: 22px; margin-bottom: 5px; }
-    .dashboard-header p { color: #e2e8f0; font-size: 14px; }
 
     .stats-grid {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px;
@@ -293,7 +292,6 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
     .btn-delete:hover { background-color: #dc2626; }
     .action-cell { display: flex; flex-direction: column; gap: 3px; justify-content: center; align-items: center; }
 
-    /* Print Style Rules */
     @media print {
       body { background-color: white; color: black; padding: 0; }
       .navbar, .form-section, .filter-box, .btn-print, .action-header, .action-cell, .btn-edit, .btn-delete { display: none !important; }
@@ -384,7 +382,6 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
           </table>
         </div>
       </div>
-
     </div>
   </main>
 
@@ -550,26 +547,22 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
           <form id="formKesehatan" onsubmit="tambahDataKesehatan(event)">
             <input type="hidden" id="editKesehatanId" value="">
             <div class="form-group"><label>Tanggal Pemeriksaan:</label><input type="date" id="tanggalKesehatan" required></div>
-            
             <div class="form-group">
               <label>Nama Personil:</label>
               <select id="namaPersonil" required>
                 <option value="">-- Pilih Nama Personil --</option>
               </select>
             </div>
-
             <div class="form-group"><label>Nama Area:</label>
               <select id="areaKesehatan" class="area-select-options" required>
                 <option value="">-- Pilih Area / Posko --</option>
               </select>
             </div>
             <div class="form-group"><label>Suhu Badan (°C):</label><input type="number" step="0.1" id="suhuBadan" placeholder="36.5" required></div>
-            
             <div class="form-group">
               <label>Hasil Tensimeter (Tekanan Darah):</label>
               <input type="text" id="hasilTensimeter" placeholder="Contoh: 120/80 mmHg" required>
             </div>
-
             <div class="form-group"><label>Oxymeter SpO2 (%):</label><input type="number" id="oxymeter" placeholder="98" min="0" max="100" required></div>
             <div class="form-group"><label>Dokumentasi:</label><input type="file" id="dokumentasiKesehatan" accept="image/*"></div>
             <button type="submit" class="btn-submit">Simpan Data Kesehatan</button>
@@ -611,31 +604,12 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
 
   <!-- JavaScript Logic -->
   <script>
-    const ulpOnlyList = [
-      "ULP Tanjungsari",
-      "ULP Sumedang",
-      "ULP Majalengka",
-      "ULP Jatiwangi"
-    ];
-
+    const ulpOnlyList = ["ULP Tanjungsari", "ULP Sumedang", "ULP Majalengka", "ULP Jatiwangi"];
     const areaList = [
-      "ULP Tanjungsari",
-      "ULP Sumedang",
-      "ULP Majalengka",
-      "ULP Jatiwangi",
-      "Posko Jatinangor",
-      "Posko Cimalaka",
-      "Posko Sekarwangi",
-      "Posko Tomo",
-      "Posko Darmaraja",
-      "Posko Wado",
-      "Posko Kadipaten",
-      "Posko Rajagaluh",
-      "Posko Maja",
-      "Posko Talaga",
-      "Posko Bantarujeg",
-      "Posko Ligung",
-      "Posko Leuwimunding"
+      "ULP Tanjungsari", "ULP Sumedang", "ULP Majalengka", "ULP Jatiwangi",
+      "Posko Jatinangor", "Posko Cimalaka", "Posko Sekarwangi", "Posko Tomo",
+      "Posko Darmaraja", "Posko Wado", "Posko Kadipaten", "Posko Rajagaluh",
+      "Posko Maja", "Posko Talaga", "Posko Bantarujeg", "Posko Ligung", "Posko Leuwimunding"
     ];
 
     const personilList = [
@@ -706,11 +680,7 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
     }, $initialKesehatanList)); ?>;
     
     let activityLogs = [];
-
-    const namaBulanIndo = [
-      "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
-      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-    ];
+    const namaBulanIndo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
     document.addEventListener("DOMContentLoaded", function() {
       initAreaOptions();
@@ -746,7 +716,6 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       selects.forEach(select => {
         const isUlpOnly = select.classList.contains('area-ulp-only');
         const targetList = isUlpOnly ? ulpOnlyList : areaList;
-        
         select.innerHTML = isUlpOnly ? '<option value="">-- Pilih Area --</option>' : '<option value="">-- Pilih Area / Posko --</option>';
         targetList.forEach(area => {
           const opt = document.createElement('option');
@@ -760,7 +729,6 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
     function initPersonilOptions() {
       const select = document.getElementById('namaPersonil');
       if (!select) return;
-
       select.innerHTML = '<option value="">-- Pilih Nama Personil --</option>';
       personilList.forEach(nama => {
         const opt = document.createElement('option');
@@ -781,9 +749,7 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       headerMap.forEach(item => {
         const thead = document.getElementById(item.id);
         let headerHTML = `<tr><th class="col-tanggal">${item.label}</th>`;
-        item.list.forEach(area => {
-          headerHTML += `<th>${area}</th>`;
-        });
+        item.list.forEach(area => { headerHTML += `<th>${area}</th>`; });
         headerHTML += '</tr>';
         thead.innerHTML = headerHTML;
       });
@@ -806,13 +772,12 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       if (!monthStr) return '';
       const [year, month] = monthStr.split('-');
       const monthIndex = parseInt(month, 10) - 1;
-      return `${namaBulanIndo[monthIndex]} ${year}`;
+      return `${namaBulanIndo[monthIndex]}${year}`;
     }
 
     function logActivity(kategori, ket, tgl) {
       activityLogs.unshift({ kategori, ket, tgl });
       if (activityLogs.length > 5) activityLogs.pop();
-      
       const tbody = document.getElementById('recentActivityTable');
       tbody.innerHTML = '';
       activityLogs.forEach(log => {
@@ -848,7 +813,6 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       const formattedLabel = isMonthly ? formatIndoMonthYear(rawInput) : formatIndoDate(rawInput);
       const ulp = document.getElementById(`ULP${keyCategory}`).value;
       const fotoInput = document.getElementById(`foto${keyCategory}`);
-
       const targetList = keyCategory === 'SafetyBriefing' ? ulpOnlyList : areaList;
 
       const processSave = (imgSrc) => {
@@ -866,16 +830,12 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
             if (!storeData[keyCategory][formattedLabel]) {
               const areaObj = {};
               targetList.forEach(a => areaObj[a] = null);
-              storeData[keyCategory][formattedLabel] = {
-                rawDate: rawInput,
-                areas: areaObj
-              };
+              storeData[keyCategory][formattedLabel] = { rawDate: rawInput, areas: areaObj };
             }
             storeData[keyCategory][formattedLabel].areas[ulp] = { img: imgSrc };
             renderTable(keyCategory, tbodyId, isMonthly);
             logActivity(keyCategory, `Input Laporan ${ulp}`, formattedLabel);
             updateDashboardStats();
-            
             document.getElementById(`form${keyCategory}`).reset();
             setDefaultDates();
             alert('Data berhasil disimpan ke database XAMPP!');
@@ -902,7 +862,6 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       const dataObj = storeData[keyCategory] || {};
       const keys = Object.keys(dataObj);
       let countData = 0;
-
       const targetList = keyCategory === 'SafetyBriefing' ? ulpOnlyList : areaList;
 
       keys.forEach(label => {
@@ -919,7 +878,7 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
             cellHtml += `<img src="${itemData.img}" class="img-preview-matrix">
               <div class="action-cell" style="margin-top: 5px;">
                 <button class="btn-edit" type="button" onclick="editMatrixData('${keyCategory}', '${item.rawDate}', '${area}')">Edit</button>
-                <button class="btn-delete" type="button" onclick="hapusMatrixData('${keyCategory}', '${item.rawDate}', '${area}', '${tbodyId}', ${isMonthly})">Hapus</button>
+                <button class="btn-delete" type="button" onclick="hapusMatrixData('${keyCategory}', '${item.rawDate}', '${area}', '${tbodyId}',${isMonthly})">Hapus</button>
               </div>`;
           }
           cellHtml += '</td>';
@@ -969,7 +928,6 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       renderTable(keyCategory, tbodyId, isMonthly);
     }
 
-    /* MONITORING KESEHATAN */
     function tambahDataKesehatan(event) {
       event.preventDefault();
       const id = document.getElementById('editKesehatanId').value;
@@ -1017,8 +975,8 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       if (!tbody) return;
       tbody.innerHTML = '';
       const searchNama = document.getElementById('filterNamaKesehatan').value.toLowerCase().trim();
-
       const filteredData = dataKesehatanList.filter(item => item.nama.toLowerCase().includes(searchNama));
+      
       if (filteredData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding: 15px; color: #64748b;">Data personil tidak ditemukan.</td></tr>`;
         return;
@@ -1079,11 +1037,9 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       renderTableKesehatan();
     }
 
-    /* FUNGSI PRINT */
     function cetakLaporanKesehatan() {
       const tbodyContent = document.getElementById('tabelBodyKesehatan').cloneNode(true);
       tbodyContent.querySelectorAll('.action-header').forEach(el => el.remove());
-
       const printWindow = window.open('', '', 'height=650,width=900');
       printWindow.document.write(`<html><head><title>LAPORAN MONITORING KESEHATAN</title><style>
         body { font-family: sans-serif; padding: 20px; }
@@ -1095,37 +1051,3 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       </style></head><body>
         <h2>LAPORAN MONITORING KESEHATAN PERSONIL</h2>
         <table><thead><tr><th>No</th><th>Tanggal</th><th>Nama Personil</th><th>Area</th><th>Suhu (°C)</th><th>Hasil Tensimeter</th><th>Oxymeter (%)</th><th>Dokumentasi</th></tr></thead>
-        <tbody>${tbodyContent.innerHTML}</tbody></table>
-      </body></html>`);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
-    }
-
-    function cetakLaporanDirect(theadId, tbodyId, judulLaporan) {
-      const theadClone = document.getElementById(theadId).cloneNode(true);
-      const tbodyClone = document.getElementById(tbodyId).cloneNode(true);
-      tbodyClone.querySelectorAll('.action-cell').forEach(el => el.remove());
-
-      const printWindow = window.open('', '', 'height=700,width=1200');
-      printWindow.document.write(`<html><head><title>${judulLaporan}</title><style>
-        @page { size: landscape; }
-        body { font-family: sans-serif; padding: 15px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10px; }
-        th, td { border: 1px solid #000; padding: 4px; text-align: center; }
-        th { background-color: #1e3a8a; color: white; }
-        .img-preview-matrix { max-width: 60px; max-height: 45px; }
-      </style></head><body>
-        <h2>${judulLaporan}</h2>
-        <table>
-          <thead>${theadClone.innerHTML}</thead>
-          <tbody>${tbodyClone.innerHTML}</tbody>
-        </table>
-      </body></html>`);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
-    }
-  </script>
-</body>
-</html>
