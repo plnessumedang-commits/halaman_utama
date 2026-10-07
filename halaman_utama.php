@@ -313,13 +313,13 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
   <div class="navbar">
     <div class="logo">Unit Layanan Sumedang</div>
     <div class="navbar-menu">
-  <a class="nav-btn active" onclick="switchMenu('Home', this)">Beranda</a>
-  <a class="nav-btn" onclick="switchMenu('safety-briefing', this)">Safety Briefing</a>
-  <a class="nav-btn" onclick="switchMenu('lima-r', this)">5R</a>
-  <a class="nav-btn" onclick="switchMenu('Inspeksi-alat', this)">Inspeksi Alat</a>
-  <a class="nav-btn" onclick="switchMenu('rambu-rambu', this)">Rambu-rambu</a>
-  <a class="nav-btn" onclick="switchMenu('monitoring-kesehatan', this)">Monitoring Kesehatan</a>
-</div>
+      <a class="nav-btn active" onclick="switchMenu('Home', this)">Beranda</a>
+      <a class="nav-btn" onclick="switchMenu('safety-briefing', this)">Safety Briefing</a>
+      <a class="nav-btn" onclick="switchMenu('lima-r', this)">5R</a>
+      <a class="nav-btn" onclick="switchMenu('Inspeksi-alat', this)">Inspeksi Alat</a>
+      <a class="nav-btn" onclick="switchMenu('rambu-rambu', this)">Rambu-rambu</a>
+      <a class="nav-btn" onclick="switchMenu('monitoring-kesehatan', this)">Monitoring Kesehatan</a>
+    </div>
   </div>
 
   <!-- DASHBOARD HOME / BERANDA -->
@@ -690,7 +690,6 @@ $initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
       "YOGIRIN", "YOSEP DAYAT NUGRAHA", "YUDI PERMADI", "YUSUP SUHARTA"
     ];
 
-    // Sinkronisasi data dari Database PHP
     const storeData = <?php echo json_encode($initialStoreData); ?>;
     let dataKesehatanList = <?php echo json_encode(array_map(function($item) {
         return [
