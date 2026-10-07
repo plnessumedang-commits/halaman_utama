@@ -1,0 +1,1132 @@
+<?php
+// Konfigurasi Koneksi Database XAMPP (MySQL)
+$host = 'localhost';
+$dbname = 'db_unit_layanan';
+$username = 'root';
+$password = '';
+
+try {
+    $pdo = new PDO("mysql:host=$host;charset=utf8mb4", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+    // Validasi & Buat database/tabel otomatis jika belum ada
+    $pdo->exec("CREATE DATABASE IF NOT EXISTS `$dbname` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;");
+    $pdo->exec("USE `$dbname`;");
+    
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `safety_briefing` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `tanggal` DATE NOT NULL,
+      `nama_area` VARCHAR(50) NOT NULL,
+      `foto` LONGTEXT DEFAULT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `penerapan_5r` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `periode_bulan` VARCHAR(7) NOT NULL,
+      `nama_area` VARCHAR(50) NOT NULL,
+      `foto` LONGTEXT DEFAULT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `inspeksi_alat` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `periode_bulan` VARCHAR(7) NOT NULL,
+      `nama_area` VARCHAR(50) NOT NULL,
+      `foto` LONGTEXT DEFAULT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `inspeksi_rambu` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `periode_bulan` VARCHAR(7) NOT NULL,
+      `nama_area` VARCHAR(50) NOT NULL,
+      `foto` LONGTEXT DEFAULT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `monitoring_kesehatan` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `tanggal` DATE NOT NULL,
+      `nama_personil` VARCHAR(100) NOT NULL,
+      `nama_area` VARCHAR(50) NOT NULL,
+      `suhu_badan` DECIMAL(4,1) NOT NULL,
+      `hasil_tensimeter` VARCHAR(30) NOT NULL,
+      `oxymeter` INT NOT NULL,
+      `foto` LONGTEXT DEFAULT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+} catch (PDOException $e) {
+    die("Koneksi Database Gagal: " . $e->getMessage());
+}
+
+// Handle AJAX Request untuk Simpan & Hapus Matriks
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'save_matrix') {
+        $category = $_POST['category'] ?? ''; 
+        $dateVal = $_POST['date_val'] ?? '';
+        $area = $_POST['area'] ?? '';
+        $foto = $_POST['foto'] ?? '';
+
+        $tableMap = [
+            'SafetyBriefing' => 'safety_briefing',
+            '5R' => 'penerapan_5r',
+            'Alat' => 'inspeksi_alat',
+            'Rambu' => 'inspeksi_rambu'
+        ];
+
+        if (isset($tableMap[$category])) {
+            $tableName = $tableMap[$category];
+            $dateCol = ($category === 'SafetyBriefing') ? 'tanggal' : 'periode_bulan';
+
+            $stmt = $pdo->prepare("SELECT id FROM `$tableName` WHERE `$dateCol` = ? AND `nama_area` = ?");
+            $stmt->execute([$dateVal, $area]);
+            $existing = $stmt->fetch();
+
+            if ($existing) {
+                $stmtUpdate = $pdo->prepare("UPDATE `$tableName` SET `foto` = ? WHERE `id` = ?");
+                $stmtUpdate->execute([$foto, $existing['id']]);
+            } else {
+                $stmtInsert = $pdo->prepare("INSERT INTO `$tableName` (`$dateCol`, `nama_area`, `foto`) VALUES (?, ?, ?)");
+                $stmtInsert->execute([$dateVal, $area, $foto]);
+            }
+            echo json_encode(['status' => 'success']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Kategori tidak valid']);
+        }
+        exit;
+    }
+
+    if ($action === 'delete_matrix') {
+        $category = $_POST['category'] ?? '';
+        $dateVal = $_POST['date_val'] ?? '';
+        $area = $_POST['area'] ?? '';
+
+        $tableMap = [
+            'SafetyBriefing' => 'safety_briefing',
+            '5R' => 'penerapan_5r',
+            'Alat' => 'inspeksi_alat',
+            'Rambu' => 'inspeksi_rambu'
+        ];
+
+        if (isset($tableMap[$category])) {
+            $tableName = $tableMap[$category];
+            $dateCol = ($category === 'SafetyBriefing') ? 'tanggal' : 'periode_bulan';
+
+            $stmt = $pdo->prepare("DELETE FROM `$tableName` WHERE `$dateCol` = ? AND `nama_area` = ?");
+            $stmt->execute([$dateVal, $area]);
+            echo json_encode(['status' => 'success']);
+        }
+        exit;
+    }
+
+    // Handle AJAX Request untuk Monitoring Kesehatan
+    if ($action === 'save_kesehatan') {
+        $id = $_POST['id'] ?? '';
+        $tanggal = $_POST['tanggal'] ?? '';
+        $nama = $_POST['nama'] ?? '';
+        $area = $_POST['area'] ?? '';
+        $suhu = $_POST['suhu'] ?? '';
+        $tensimeter = $_POST['tensimeter'] ?? '';
+        $oxymeter = $_POST['oxymeter'] ?? '';
+        $foto = $_POST['foto'] ?? '';
+
+        if (!empty($id)) {
+            $stmt = $pdo->prepare("UPDATE `monitoring_kesehatan` SET `tanggal` = ?, `nama_personil` = ?, `nama_area` = ?, `suhu_badan` = ?, `hasil_tensimeter` = ?, `oxymeter` = ?, `foto` = COALESCE(NULLIF(?, ''), `foto`) WHERE `id` = ?");
+            $stmt->execute([$tanggal, $nama, $area, $suhu, $tensimeter, $oxymeter, $foto, $id]);
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO `monitoring_kesehatan` (`tanggal`, `nama_personil`, `nama_area`, `suhu_badan`, `hasil_tensimeter`, `oxymeter`, `foto`) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$tanggal, $nama, $area, $suhu, $tensimeter, $oxymeter, $foto]);
+        }
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+
+    if ($action === 'delete_kesehatan') {
+        $id = $_POST['id'] ?? '';
+        $stmt = $pdo->prepare("DELETE FROM `monitoring_kesehatan` WHERE `id` = ?");
+        $stmt->execute([$id]);
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+}
+
+// Ambil data matriks dari Database
+$fetchData = function($tableName, $dateCol) use ($pdo) {
+    $stmt = $pdo->query("SELECT * FROM `$tableName`");
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $formatted = [];
+    foreach ($rows as $row) {
+        $rawDate = $row[$dateCol];
+        $area = $row['nama_area'];
+        $foto = $row['foto'];
+
+        if ($tableName === 'safety_briefing') {
+            $parts = explode('-', $rawDate);
+            $label = count($parts) === 3 ? "{$parts[2]}/{$parts[1]}/{$parts[0]}" : $rawDate;
+        } else {
+            $parts = explode('-', $rawDate);
+            $namaBulanIndo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            $label = (count($parts) === 2 && isset($namaBulanIndo[(int)$parts[1]-1])) ? $namaBulanIndo[(int)$parts[1]-1] . " " . $parts[0] : $rawDate;
+        }
+
+        if (!isset($formatted[$label])) {
+            $formatted[$label] = ['rawDate' => $rawDate, 'areas' => []];
+        }
+        $formatted[$label]['areas'][$area] = ['img' => $foto];
+    }
+    return $formatted;
+};
+
+$initialStoreData = [
+    'SafetyBriefing' => $fetchData('safety_briefing', 'tanggal'),
+    '5R' => $fetchData('penerapan_5r', 'periode_bulan'),
+    'Alat' => $fetchData('inspeksi_alat', 'periode_bulan'),
+    'Rambu' => $fetchData('inspeksi_rambu', 'periode_bulan')
+];
+
+// Ambil data Monitoring Kesehatan dari Database
+$stmtKesehatan = $pdo->query("SELECT * FROM `monitoring_kesehatan` ORDER BY `tanggal` DESC");
+$initialKesehatanList = $stmtKesehatan->fetchAll(PDO::FETCH_ASSOC);
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Unit Layanan Sumedang</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8; color: #1e293b; padding-bottom: 40px; }
+
+    /* Navigation Bar */
+    .navbar {
+      background: linear-gradient(135deg, #1e3a8a, #0f46a0);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 15px 30px; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+    .navbar .logo { color: white; font-weight: bold; font-size: 20px; letter-spacing: 0.5px; }
+    .navbar-menu { display: flex; align-items: center; gap: 8px; }
+    .navbar-menu a {
+      color: #e2e8f0; text-decoration: none; padding: 8px 14px; border-radius: 6px;
+      transition: all 0.3s ease; cursor: pointer; font-size: 14px; font-weight: 500;
+    }
+    .navbar-menu a:hover, .navbar-menu a.active { background-color: #2563eb; color: #ffffff; }
+
+    /* Main Container Cards */
+    .content-card {
+      max-width: 1400px; margin: 90px auto 40px auto; background-color: white;
+      border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); display: none;
+    }
+    .content-card.wide-card { max-width: 96%; }
+    .content-card.active { display: block; }
+
+    .content-body { padding: 25px; color: #1e293b; }
+    .content-body h1 { font-size: 24px; color: #0f46a0; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+    .content-body h2 { font-size: 18px; color: #1e3a8a; margin-bottom: 15px; }
+
+    /* DASHBOARD HOME STYLES */
+    .dashboard-header {
+      background: linear-gradient(135deg, #0f46a0, #2563eb);
+      color: white; padding: 25px; border-radius: 10px; margin-bottom: 25px;
+    }
+    .dashboard-header h2 { color: white; font-size: 22px; margin-bottom: 5px; }
+    .dashboard-header p { color: #e2e8f0; font-size: 14px; }
+
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px;
+    }
+    .stat-card {
+      background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between;
+      transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-info h3 { font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+    .stat-info .stat-number { font-size: 26px; font-weight: bold; color: #0f46a0; margin-top: 5px; }
+    .stat-icon { font-size: 28px; background-color: #eff6ff; padding: 10px; border-radius: 8px; color: #2563eb; }
+
+    .recent-activity { width: 100%; background: #ffffff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; }
+
+    /* Form & Laporan Layout */
+    .briefing-container { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+    .form-section { flex: 1; min-width: 300px; background-color: #f8fafc; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    .report-section { flex: 3; min-width: 600px; background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; overflow-x: auto; }
+
+    /* Form Controls */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #334155; font-size: 13px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; font-family: inherit; transition: 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: #2563eb; outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+
+    /* Buttons */
+    .btn-submit { background-color: #2563eb; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; margin-top: 10px; transition: 0.2s; }
+    .btn-submit:hover { background-color: #1d4ed8; }
+    .btn-print { background-color: #059669; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; margin-top: 18px; transition: 0.2s; }
+    .btn-print:hover { background-color: #047857; }
+
+    .filter-box { display: flex; gap: 10px; align-items: center; background-color: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+    .filter-box label { font-size: 12px; font-weight: bold; color: #475569; }
+    .filter-box input { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; }
+    .btn-filter { background-color: #0f46a0; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+    .btn-reset { background-color: #64748b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+
+    /* Tables */
+    .table-responsive { overflow-x: auto; max-width: 100%; }
+    .matrix-table, .stock-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; white-space: nowrap; }
+    .matrix-table th { background-color: #1e3a8a; color: white; padding: 10px 6px; border: 1px solid #1e293b; text-align: center; font-size: 11px; }
+    .matrix-table td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; vertical-align: middle; min-width: 90px; height: 80px; }
+    .matrix-table td.col-tanggal { background-color: #f8fafc; font-weight: bold; color: #334155; min-width: 100px; position: sticky; left: 0; z-index: 2; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
+
+    .stock-table th { background-color: #0f46a0; color: white; padding: 10px 8px; border: 1px solid #0c3880; text-align: center; }
+    .stock-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; vertical-align: middle; }
+    .stock-table tr:nth-child(even) { background-color: #f8fafc; }
+
+    .img-preview-matrix { max-width: 80px; max-height: 60px; object-fit: cover; border-radius: 4px; display: block; margin: 0 auto; }
+    .text-center { text-align: center !important; }
+
+    .btn-edit { background-color: #f59e0b; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; margin-bottom: 2px; }
+    .btn-edit:hover { background-color: #d97706; }
+    .btn-delete { background-color: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; }
+    .btn-delete:hover { background-color: #dc2626; }
+    .action-cell { display: flex; flex-direction: column; gap: 3px; justify-content: center; align-items: center; }
+
+    /* Print Style Rules */
+    @media print {
+      body { background-color: white; color: black; padding: 0; }
+      .navbar, .form-section, .filter-box, .btn-print, .action-header, .action-cell, .btn-edit, .btn-delete { display: none !important; }
+      .content-card { max-width: 100% !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
+      .content-card:not(.active) { display: none !important; }
+      .content-card.active { display: block !important; }
+      .briefing-container { display: block !important; }
+      .report-section { width: 100% !important; border: none !important; padding: 0 !important; }
+      .matrix-table th, .stock-table th { background-color: #ddd !important; color: black !important; }
+      .matrix-table td, .stock-table td { border: 1px solid #000 !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <div class="navbar">
+    <div class="logo">Unit Layanan Sumedang</div>
+    <div class="navbar-menu">
+  <a class="nav-btn active" onclick="switchMenu('Home', this)">Beranda</a>
+  <a class="nav-btn" onclick="switchMenu('safety-briefing', this)">Safety Briefing</a>
+  <a class="nav-btn" onclick="switchMenu('lima-r', this)">5R</a>
+  <a class="nav-btn" onclick="switchMenu('Inspeksi-alat', this)">Inspeksi Alat</a>
+  <a class="nav-btn" onclick="switchMenu('rambu-rambu', this)">Rambu-rambu</a>
+  <a class="nav-btn" onclick="switchMenu('monitoring-kesehatan', this)">Monitoring Kesehatan</a>
+</div>
+  </div>
+
+  <!-- DASHBOARD HOME / BERANDA -->
+  <main id="Home" class="content-card wide-card active">
+    <div class="content-body">
+      <div class="dashboard-header">
+        <h2>Selamat Datang di Unit Layanan Sumedang</h2>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Safety Briefing</h3>
+            <div class="stat-number" id="statBriefing">0</div>
+          </div>
+          <div class="stat-icon">📋</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Penerapan 5R</h3>
+            <div class="stat-number" id="stat5R">0</div>
+          </div>
+          <div class="stat-icon">🧹</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Inspeksi Alat</h3>
+            <div class="stat-number" id="statAlat">0</div>
+          </div>
+          <div class="stat-icon">🛠️</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Inspeksi Rambu</h3>
+            <div class="stat-number" id="statRambu">0</div>
+          </div>
+          <div class="stat-icon">⚠️</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-info">
+            <h3>Personil Sehat</h3>
+            <div class="stat-number" id="statKesehatan">0</div>
+          </div>
+          <div class="stat-icon">🩺</div>
+        </div>
+      </div>
+
+      <div class="recent-activity">
+        <h2>Aktivitas Terbaru</h2>
+        <div class="table-responsive">
+          <table class="stock-table">
+            <thead>
+              <tr>
+                <th>Kategori</th>
+                <th>Keterangan / Area</th>
+                <th>Periode / Tanggal</th>
+              </tr>
+            </thead>
+            <tbody id="recentActivityTable">
+              <tr><td colspan="3" class="text-center" style="color: #64748b; padding: 15px;">Belum ada aktivitas tercatat.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Safety Briefing -->
+  <main id="safety-briefing" class="content-card wide-card">
+    <div class="content-body">
+      <h1>Safety Briefing</h1>
+      <div class="briefing-container">
+        <div class="form-section">
+          <h2>Input Dokumentasi Safety Briefing</h2>
+          <form id="formSafetyBriefing" onsubmit="tambahData(event, 'SafetyBriefing', 'tabelBodySafetyBriefing', false)">
+            <div class="form-group"><label>Tanggal Pelaksanaan:</label><input type="date" id="tanggalSafetyBriefing" required></div>
+            <div class="form-group"><label>Nama Area:</label>
+              <select id="ULPSafetyBriefing" class="area-select-options area-ulp-only" required>
+                <option value="">-- Pilih Area --</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Dokumentasi Foto:</label><input type="file" id="fotoSafetyBriefing" accept="image/*"></div>
+            <button type="submit" class="btn-submit">Simpan Data</button>
+          </form>
+        </div>
+        <div class="report-section">
+          <h2>Hasil Laporan Safety Briefing</h2>
+          <div class="filter-box">
+            <div><label>Dari Tanggal:</label><input type="date" id="filterStartSafetyBriefing"></div>
+            <div><label>Sampai Tanggal:</label><input type="date" id="filterEndSafetyBriefing"></div>
+            <button class="btn-filter" onclick="renderTable('SafetyBriefing', 'tabelBodySafetyBriefing', false)">Filter</button>
+            <button class="btn-reset" onclick="resetFilterMatrix('SafetyBriefing', 'tabelBodySafetyBriefing', false)">Reset</button>
+          </div>
+          <div class="table-responsive">
+            <table class="matrix-table">
+              <thead id="headerSafetyBriefing"></thead>
+              <tbody id="tabelBodySafetyBriefing"></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn-print" onclick="cetakLaporanDirect('headerSafetyBriefing', 'tabelBodySafetyBriefing', 'LAPORAN SAFETY BRIEFING')">🖨️ Cetak Laporan</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 5R -->
+  <main id="lima-r" class="content-card wide-card">
+    <div class="content-body">
+      <h1>Penerapan 5R</h1>
+      <div class="briefing-container">
+        <div class="form-section">
+          <h2>Input Dokumentasi 5R</h2>
+          <form id="form5R" onsubmit="tambahData(event, '5R', 'tabelBody5R', true)">
+            <div class="form-group"><label>Bulan & Tahun Pelaksanaan:</label><input type="month" id="tanggal5R" required></div>
+            <div class="form-group"><label>Nama Area:</label>
+              <select id="ULP5R" class="area-select-options" required>
+                <option value="">-- Pilih Area / Posko --</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Dokumentasi Foto:</label><input type="file" id="foto5R" accept="image/*"></div>
+            <button type="submit" class="btn-submit">Simpan Data</button>
+          </form>
+        </div>
+        <div class="report-section">
+          <h2>Hasil Laporan Penerapan 5R</h2>
+          <div class="filter-box">
+            <div><label>Dari Bulan:</label><input type="month" id="filterStart5R"></div>
+            <div><label>Sampai Bulan:</label><input type="month" id="filterEnd5R"></div>
+            <button class="btn-filter" onclick="renderTable('5R', 'tabelBody5R', true)">Filter</button>
+            <button class="btn-reset" onclick="resetFilterMatrix('5R', 'tabelBody5R', true)">Reset</button>
+          </div>
+          <div class="table-responsive">
+            <table class="matrix-table">
+              <thead id="header5R"></thead>
+              <tbody id="tabelBody5R"></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn-print" onclick="cetakLaporanDirect('header5R', 'tabelBody5R', 'LAPORAN PENERAPAN 5R')">🖨️ Cetak Laporan</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Inspeksi Alat -->
+  <main id="Inspeksi-alat" class="content-card wide-card">
+    <div class="content-body">
+      <h1>Inspeksi Alat</h1>
+      <div class="briefing-container">
+        <div class="form-section">
+          <h2>Input Inspeksi Alat</h2>
+          <form id="formAlat" onsubmit="tambahData(event, 'Alat', 'tabelBodyAlat', true)">
+            <div class="form-group"><label>Bulan & Tahun Inspeksi:</label><input type="month" id="tanggalAlat" required></div>
+            <div class="form-group"><label>Nama Area:</label>
+              <select id="ULPAlat" class="area-select-options" required>
+                <option value="">-- Pilih Area / Posko --</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Dokumentasi Foto:</label><input type="file" id="fotoAlat" accept="image/*"></div>
+            <button type="submit" class="btn-submit">Simpan Data</button>
+          </form>
+        </div>
+        <div class="report-section">
+          <h2>Hasil Laporan Inspeksi Alat</h2>
+          <div class="filter-box">
+            <div><label>Dari Bulan:</label><input type="month" id="filterStartAlat"></div>
+            <div><label>Sampai Bulan:</label><input type="month" id="filterEndAlat"></div>
+            <button class="btn-filter" onclick="renderTable('Alat', 'tabelBodyAlat', true)">Filter</button>
+            <button class="btn-reset" onclick="resetFilterMatrix('Alat', 'tabelBodyAlat', true)">Reset</button>
+          </div>
+          <div class="table-responsive">
+            <table class="matrix-table">
+              <thead id="headerAlat"></thead>
+              <tbody id="tabelBodyAlat"></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn-print" onclick="cetakLaporanDirect('headerAlat', 'tabelBodyAlat', 'LAPORAN INSPEKSI ALAT')">🖨️ Cetak Laporan</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Rambu-rambu -->
+  <main id="rambu-rambu" class="content-card wide-card">
+    <div class="content-body">
+      <h1>Dokumentasi Rambu-Rambu</h1>
+      <div class="briefing-container">
+        <div class="form-section">
+          <h2>Input Dokumentasi Rambu</h2>
+          <form id="formRambu" onsubmit="tambahData(event, 'Rambu', 'tabelBodyRambu', true)">
+            <div class="form-group"><label>Bulan & Tahun Inspeksi:</label><input type="month" id="tanggalRambu" required></div>
+            <div class="form-group"><label>Nama Area:</label>
+              <select id="ULPRambu" class="area-select-options" required>
+                <option value="">-- Pilih Area / Posko --</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Dokumentasi Foto:</label><input type="file" id="fotoRambu" accept="image/*"></div>
+            <button type="submit" class="btn-submit">Simpan Data</button>
+          </form>
+        </div>
+        <div class="report-section">
+          <h2>Hasil Laporan Rambu-Rambu</h2>
+          <div class="filter-box">
+            <div><label>Dari Bulan:</label><input type="month" id="filterStartRambu"></div>
+            <div><label>Sampai Bulan:</label><input type="month" id="filterEndRambu"></div>
+            <button class="btn-filter" onclick="renderTable('Rambu', 'tabelBodyRambu', true)">Filter</button>
+            <button class="btn-reset" onclick="resetFilterMatrix('Rambu', 'tabelBodyRambu', true)">Reset</button>
+          </div>
+          <div class="table-responsive">
+            <table class="matrix-table">
+              <thead id="headerRambu"></thead>
+              <tbody id="tabelBodyRambu"></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn-print" onclick="cetakLaporanDirect('headerRambu', 'tabelBodyRambu', 'LAPORAN INSPEKSI RAMBU-RAMBU')">🖨️ Cetak Laporan</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Monitoring Kesehatan -->
+  <main id="monitoring-kesehatan" class="content-card wide-card">
+    <div class="content-body">
+      <h1>Monitoring Kesehatan Personil</h1>
+      <div class="briefing-container">
+        <div class="form-section">
+          <h2>Input Pemeriksaan Kesehatan</h2>
+          <form id="formKesehatan" onsubmit="tambahDataKesehatan(event)">
+            <input type="hidden" id="editKesehatanId" value="">
+            <div class="form-group"><label>Tanggal Pemeriksaan:</label><input type="date" id="tanggalKesehatan" required></div>
+            
+            <div class="form-group">
+              <label>Nama Personil:</label>
+              <select id="namaPersonil" required>
+                <option value="">-- Pilih Nama Personil --</option>
+              </select>
+            </div>
+
+            <div class="form-group"><label>Nama Area:</label>
+              <select id="areaKesehatan" class="area-select-options" required>
+                <option value="">-- Pilih Area / Posko --</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Suhu Badan (°C):</label><input type="number" step="0.1" id="suhuBadan" placeholder="36.5" required></div>
+            
+            <div class="form-group">
+              <label>Hasil Tensimeter (Tekanan Darah):</label>
+              <input type="text" id="hasilTensimeter" placeholder="Contoh: 120/80 mmHg" required>
+            </div>
+
+            <div class="form-group"><label>Oxymeter SpO2 (%):</label><input type="number" id="oxymeter" placeholder="98" min="0" max="100" required></div>
+            <div class="form-group"><label>Dokumentasi:</label><input type="file" id="dokumentasiKesehatan" accept="image/*"></div>
+            <button type="submit" class="btn-submit">Simpan Data Kesehatan</button>
+          </form>
+        </div>
+
+        <div class="report-section">
+          <h2>Hasil Laporan Monitoring Kesehatan</h2>
+          <div class="filter-box">
+            <div>
+              <label>Cari Nama Personil:</label>
+              <input type="text" id="filterNamaKesehatan" placeholder="Ketik nama personil..." onkeyup="renderTableKesehatan()">
+            </div>
+            <button class="btn-reset" onclick="resetFilterKesehatan()">Reset</button>
+          </div>
+          <div class="table-responsive">
+            <table class="stock-table">
+              <thead>
+                <tr>
+                  <th style="width: 30px;">No</th>
+                  <th>Tanggal</th>
+                  <th>Nama Personil</th>
+                  <th>Area</th>
+                  <th>Suhu (°C)</th>
+                  <th>Hasil Tensimeter</th>
+                  <th>Oxymeter (%)</th>
+                  <th>Dokumentasi</th>
+                  <th class="action-header">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tabelBodyKesehatan"></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn-print" onclick="cetakLaporanKesehatan()">🖨️ Cetak Laporan Kesehatan</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- JavaScript Logic -->
+  <script>
+    const ulpOnlyList = [
+      "ULP Tanjungsari",
+      "ULP Sumedang",
+      "ULP Majalengka",
+      "ULP Jatiwangi"
+    ];
+
+    const areaList = [
+      "ULP Tanjungsari",
+      "ULP Sumedang",
+      "ULP Majalengka",
+      "ULP Jatiwangi",
+      "Posko Jatinangor",
+      "Posko Cimalaka",
+      "Posko Sekarwangi",
+      "Posko Tomo",
+      "Posko Darmaraja",
+      "Posko Wado",
+      "Posko Kadipaten",
+      "Posko Rajagaluh",
+      "Posko Maja",
+      "Posko Talaga",
+      "Posko Bantarujeg",
+      "Posko Ligung",
+      "Posko Leuwimunding"
+    ];
+
+    const personilList = [
+      "AAN JUANTORO", "ABDUL AJID", "ABDUL FALAH", "ABDUL WAHID", "ACEP CHEKY NURUL YADI", 
+      "ACENG YADI RAYADI", "ADE MAMAN HAMDANI", "ADE MULYADI", "ADE NURDIANA", "ADE RUHIYAT", 
+      "ADI APRIADI", "ADI JUNAEDI", "ADI RAHMAYADI", "ADING HENDRI", "AEF SAEPUDIN", 
+      "AGUNG CAHYA NUGRAHA", "AGUS ERWIN YUSUF", "AGUS HENDRAWAN", "AGUS SETIAWAN", "AGUS SUPRIADI", 
+      "AGUS SUPRIANTO", "AHMAD ISMAIL", "AJAT RUHIAT", "AJAT SUDRAJAT", "AMMAR BAHTIAR", 
+      "ANDI", "ANDI FIRMANSYAH", "ANDI HIDAYAT", "ANDI SUTENDI", "ANDRI ANDRIANA", 
+      "ANDRI HERMAWAN", "ANDRI WAHYUDIN", "ANGGA BUNDARA PUTRA", "ANTA SUHANTA", "ARIANTO", 
+      "ARI HADI WIBOWO", "ARI SUPRIYANTO NUROHMAN", "ARI WIHARDIANA", "ARIF HIDAYAT", "ARIS KHARISMA WIBAWA", 
+      "ASE KURNIAWAN", "ASEP AHMALUDIN", "ASEP DADI", "ASEP NASIHIN", "ASEP RACHMAN", 
+      "ASEP RAHAYU", "ASEP ROHMAT HIDAYAT", "ASEP RUKMANA", "ASEP SAEPUDIN", "ASEP SOBUR", 
+      "ASEP SUANDI", "ASEP SUDRAJAT", "ASEP TONI MULYANA", "ASEP UUS RUHENDI", "BAMBANG ARY SISWANTO", 
+      "BAYU ROHNI", "BUDI KHARADIN", "CASMAN SUKANDAR", "CEP REDI KUSMANA", "DADAN DARMADI", 
+      "DADAN EDYANA", "DADAN RAMDANI", "DADI DARMAWAN", "DALI AHDALI", "DANI HERMAWAN", 
+      "DANI NURGANDANI", "DEDE ELAN SUHERLAN", "DEDE KUSNADI, ST", "DEDE KUSNANDAR", "DEDE MUHTAR MAULANA", 
+      "DEDE PURNAMA", "DEDE RIDWAN", "DEDE SODIANSYAH", "DEDE SUPRIATNA", "DEDI DANISWARA", 
+      "DEDI JUNAEDI", "DEDI SUBAGJA", "DEKI SUHARYADI", "DENI", "DENI KUSYANTO", 
+      "DENI SAMSUDIN", "DENI SONJAYA", "DENI SURAHMAN", "DENY SUSANTO", "DERRY ACHMAD FAUZIAN, SE", 
+      "DIAN PERMANA", "DIAN ROMANSYAH", "DIRMAN", "DWI YUGO PRANOTO", "DYLAN RANGGA KUSUMA", 
+      "EGAH RUDI PRATAMA", "EGI RAHMATULLAH", "EJE JAENUDIN", "EKA NURHIDAYAT", "EKI SUKIRMAN", 
+      "ENCENG", "ERO ARIS MUNANDAR", "ERWAN ARIS SUPRIA", "ERY INDRA PURNAMA", "FADIL AHMAD PIRDAUS", 
+      "FEGGY INDRIYANTO", "FITRI KURNIAWATI", "HABIB NURMUHAMAD", "HAFIIDZ AKHSAN", "HAFIZ REDJARACHMAN FIRDAUS", 
+      "HAKIM SULIMAN", "HAMDAN", "HANDI ISMAIL", "HEDI SEDIANA", "HENA YUDI PERMANA", 
+      "HENDI YUSNANDAR", "HENDRA HERMAWAN", "HENDRA SUPARMAN", "HENDRA WIBISANA", "HERU AHMAD FAHRUDIN", 
+      "HERY GUNAWAN", "HILMAN FIRMANSYAH", "IBAD NUR ABIDIN MUKSIN", "IIP", "ILIN RUSMAWAN", 
+      "IMAN NURIMAN", "IMAN RISMANSYAH", "INDRA PURNAMA HERMAWAN", "IPAN SOPANDI", "IQBAL FERDIANSYAH", 
+      "IRPAN SEPULOH", "IRWAN IRAWAN", "IWA HERNAWAN", "IWAN KARNAWAN", "IWAN SUKARMAN", 
+      "JAEN SUSENO", "JAJANG ABDUL WAHAB", "JEJE", "JUAR JUMENA", "JUJUN SARIPUDIN", 
+      "JUNJUN JUNAEDI", "KENU AL-BUKHORI", "KOMARUDIN FAJAR", "KOSWARA", "KRIS BANGBANG NURDIANSAH", 
+      "KUDIK", "KUSWITA", "LUKMAN BUKHORI", "MADI", "MAHMUDIN", 
+      "MAKMUR", "MAMAN SUHERMAN", "MAMAT", "MEMET ROHIMAT", "MICHAEL RAJA TRINATA SAPUTRA", 
+      "MOCHAMAD DWIAR RINALDA", "MOHAMMAD NIZAR MAULANA", "MOMON DURACHMAN", "MUHAMAD FAHRUL HUSAENI", "MUHAMAD IHIN SOLIHIN", 
+      "MUHAMMAD ARIE NURHAFIDZ", "MUHAMMAD RADHWA NAUFAL FATHAN", "MUHAMMAD RASSYA MUBAROQ", "MUKSIN", "MUKLIS", 
+      "NADIA NUR PRAMITHASARI", "NANANG KURNIA", "NANAN RUSTANDI", "NANA KARNAEN", "NANA SUPRIATNA", 
+      "NANA SUTISNA", "OOM SOMANTRI", "OPIK HIDAYAT", "OPIK MUNAJAT", "OTONG NANA SUDIANA", 
+      "OTONG SUKIRMAN", "PERI IRAWAN", "PIKRA PIRMANA", "RAHTANG", "RANRAN KUSMAWAN", 
+      "RANGGA PURNAMULANA", "REDJA AKWITIRAHMA", "REZA FAHLEVI", "REZA MUKHLIS WIKARYA", "RIDWAN MUHAMAD AZIZ", 
+      "RIKI MAENAKI", "RIKI RIANTO", "RIVANDANI FEBRIANA", "RIZKA FATURROHMAN", "RIZKI PAJAR PRATAMA", 
+      "RIZKY ZAENAL ARIFIN", "RIZQI AKBAR TARYADI", "ROHENDI", "ROHIDIN", "ROMI NUGRAHA", 
+      "RONI", "RUDI HARTONO", "RUKMAN PERMANA", "RYAN MAULANA", "RYAN SOPIAN", 
+      "SAEFULLOH", "SAEPUL ANWAR", "SANDI RAMDHANI", "SOLIHIN", "SOPANDI", 
+      "SOPIAN NURWAHYUDIN", "STENLY HERIANTO SLAMET", "SUHADA", "SUMIARSA", "SUPRIYADI", 
+      "SUYANTO ADHI SUCIPTO", "TARYO SUSANTO", "TATA MUSTOFA", "TATANG SUPRIATNA", "TATANG SUTISNA", 
+      "TAUFIQ HIDAYAT", "TEDI HERMAWAN", "TEDI SADELI", "TIKA IKLIMAH", "TONI", 
+      "TONI TAMAMI", "TORI HIDAYAT", "TRI HANDIAN", "UCI SANUSI", "UCUP IMANUDIN", 
+      "UDIN", "UDIN WAHYUDIN", "UNGSI UMBARA", "USEP IRWAN PURWANDA", "UYAT RUHIYAT", 
+      "UJANG ARIFIN", "VIAN DIKRI NURFAJAR", "VIRGO FIRMANSYAH", "WARNADI", "WAWAN", 
+      "WAWAN RUKMANA", "WIDI PERMANA", "YANDI HIDAYAT", "YAYA SUKARYA", "YAYANG RINI RUSMIATI", 
+      "YAYAN HENDRIYANA", "YAYAN SUDIANTO", "YAYAT TRIATNA", "YOGA BUDIARTO", "YOGA MARDIKA", 
+      "YOGIRIN", "YOSEP DAYAT NUGRAHA", "YUDI PERMADI", "YUSUP SUHARTA"
+    ];
+
+    // Sinkronisasi data dari Database PHP
+    const storeData = <?php echo json_encode($initialStoreData); ?>;
+    let dataKesehatanList = <?php echo json_encode(array_map(function($item) {
+        return [
+            'id' => $item['id'],
+            'rawDate' => $item['tanggal'],
+            'tanggal' => implode('/', array_reverse(explode('-', $item['tanggal']))),
+            'nama' => $item['nama_personil'],
+            'area' => $item['nama_area'],
+            'suhu' => $item['suhu_badan'],
+            'tensimeter' => $item['hasil_tensimeter'],
+            'oxymeter' => $item['oxymeter'],
+            'img' => $item['foto']
+        ];
+    }, $initialKesehatanList)); ?>;
+    
+    let activityLogs = [];
+
+    const namaBulanIndo = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+
+    document.addEventListener("DOMContentLoaded", function() {
+      initAreaOptions();
+      initPersonilOptions();
+      initMatrixHeaders();
+      setDefaultDates();
+      
+      renderTable('SafetyBriefing', 'tabelBodySafetyBriefing', false);
+      renderTable('5R', 'tabelBody5R', true);
+      renderTable('Alat', 'tabelBodyAlat', true);
+      renderTable('Rambu', 'tabelBodyRambu', true);
+      renderTableKesehatan();
+      updateDashboardStats();
+    });
+
+    function setDefaultDates() {
+      const today = new Date();
+      const currentYearMonth = today.toISOString().slice(0, 7);
+
+      ['tanggalSafetyBriefing', 'tanggalKesehatan'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.valueAsDate = today;
+      });
+
+      ['tanggal5R', 'tanggalAlat', 'tanggalRambu'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.value = currentYearMonth;
+      });
+    }
+
+    function initAreaOptions() {
+      const selects = document.querySelectorAll('.area-select-options');
+      selects.forEach(select => {
+        const isUlpOnly = select.classList.contains('area-ulp-only');
+        const targetList = isUlpOnly ? ulpOnlyList : areaList;
+        
+        select.innerHTML = isUlpOnly ? '<option value="">-- Pilih Area --</option>' : '<option value="">-- Pilih Area / Posko --</option>';
+        targetList.forEach(area => {
+          const opt = document.createElement('option');
+          opt.value = area;
+          opt.textContent = area;
+          select.appendChild(opt);
+        });
+      });
+    }
+
+    function initPersonilOptions() {
+      const select = document.getElementById('namaPersonil');
+      if (!select) return;
+
+      select.innerHTML = '<option value="">-- Pilih Nama Personil --</option>';
+      personilList.forEach(nama => {
+        const opt = document.createElement('option');
+        opt.value = nama;
+        opt.textContent = nama;
+        select.appendChild(opt);
+      });
+    }
+
+    function initMatrixHeaders() {
+      const headerMap = [
+        { id: 'headerSafetyBriefing', label: 'Tanggal', list: ulpOnlyList },
+        { id: 'header5R', label: 'Bulan / Tahun', list: areaList },
+        { id: 'headerAlat', label: 'Bulan / Tahun', list: areaList },
+        { id: 'headerRambu', label: 'Bulan / Tahun', list: areaList }
+      ];
+
+      headerMap.forEach(item => {
+        const thead = document.getElementById(item.id);
+        let headerHTML = `<tr><th class="col-tanggal">${item.label}</th>`;
+        item.list.forEach(area => {
+          headerHTML += `<th>${area}</th>`;
+        });
+        headerHTML += '</tr>';
+        thead.innerHTML = headerHTML;
+      });
+    }
+
+    function switchMenu(menuId, clickedLink) {
+      document.querySelectorAll('.content-card').forEach(card => card.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(menuId).classList.add('active');
+      clickedLink.classList.add('active');
+    }
+
+    function formatIndoDate(dateStr) {
+      if (!dateStr) return '';
+      const [year, month, day] = dateStr.split('-');
+      return `${day}/${month}/${year}`;
+    }
+
+    function formatIndoMonthYear(monthStr) {
+      if (!monthStr) return '';
+      const [year, month] = monthStr.split('-');
+      const monthIndex = parseInt(month, 10) - 1;
+      return `${namaBulanIndo[monthIndex]} ${year}`;
+    }
+
+    function logActivity(kategori, ket, tgl) {
+      activityLogs.unshift({ kategori, ket, tgl });
+      if (activityLogs.length > 5) activityLogs.pop();
+      
+      const tbody = document.getElementById('recentActivityTable');
+      tbody.innerHTML = '';
+      activityLogs.forEach(log => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><strong>${log.kategori}</strong></td><td>${log.ket}</td><td>${log.tgl}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateDashboardStats() {
+      ['SafetyBriefing', '5R', 'Alat', 'Rambu'].forEach(key => {
+        let count = 0;
+        if (storeData[key]) {
+          Object.values(storeData[key]).forEach(item => {
+            if (item.areas) {
+              Object.values(item.areas).forEach(val => { if (val && val.img) count++; });
+            }
+          });
+        }
+        const statKey = key === 'SafetyBriefing' ? 'Briefing' : key;
+        const statElem = document.getElementById(`stat${statKey}`);
+        if (statElem) statElem.innerText = count;
+      });
+      const statKes = document.getElementById('statKesehatan');
+      if (statKes) statKes.innerText = dataKesehatanList.length;
+    }
+
+    function tambahData(event, keyCategory, tbodyId, isMonthly) {
+      event.preventDefault();
+      const rawInput = document.getElementById(`tanggal${keyCategory}`).value;
+      if (!rawInput) return;
+
+      const formattedLabel = isMonthly ? formatIndoMonthYear(rawInput) : formatIndoDate(rawInput);
+      const ulp = document.getElementById(`ULP${keyCategory}`).value;
+      const fotoInput = document.getElementById(`foto${keyCategory}`);
+
+      const targetList = keyCategory === 'SafetyBriefing' ? ulpOnlyList : areaList;
+
+      const processSave = (imgSrc) => {
+        const formData = new FormData();
+        formData.append('action', 'save_matrix');
+        formData.append('category', keyCategory);
+        formData.append('date_val', rawInput);
+        formData.append('area', ulp);
+        formData.append('foto', imgSrc);
+
+        fetch('', { method: 'POST', body: formData })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            if (!storeData[keyCategory][formattedLabel]) {
+              const areaObj = {};
+              targetList.forEach(a => areaObj[a] = null);
+              storeData[keyCategory][formattedLabel] = {
+                rawDate: rawInput,
+                areas: areaObj
+              };
+            }
+            storeData[keyCategory][formattedLabel].areas[ulp] = { img: imgSrc };
+            renderTable(keyCategory, tbodyId, isMonthly);
+            logActivity(keyCategory, `Input Laporan ${ulp}`, formattedLabel);
+            updateDashboardStats();
+            
+            document.getElementById(`form${keyCategory}`).reset();
+            setDefaultDates();
+            alert('Data berhasil disimpan ke database XAMPP!');
+          }
+        });
+      };
+
+      if (fotoInput.files && fotoInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => processSave(e.target.result);
+        reader.readAsDataURL(fotoInput.files[0]);
+      } else {
+        const oldImg = storeData[keyCategory][formattedLabel]?.areas[ulp]?.img || '';
+        processSave(oldImg);
+      }
+    }
+
+    function renderTable(keyCategory, tbodyId, isMonthly) {
+      const tbody = document.getElementById(tbodyId);
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      const startDate = document.getElementById(`filterStart${keyCategory}`).value;
+      const endDate = document.getElementById(`filterEnd${keyCategory}`).value;
+      const dataObj = storeData[keyCategory] || {};
+      const keys = Object.keys(dataObj);
+      let countData = 0;
+
+      const targetList = keyCategory === 'SafetyBriefing' ? ulpOnlyList : areaList;
+
+      keys.forEach(label => {
+        const item = dataObj[label];
+        if (startDate && endDate && (item.rawDate < startDate || item.rawDate > endDate)) return;
+        countData++;
+        const row = document.createElement('tr');
+        row.innerHTML = `<td class="col-tanggal">${label}</td>`;
+
+        targetList.forEach(area => {
+          const itemData = item.areas ? item.areas[area] : null;
+          let cellHtml = '<td>';
+          if (itemData && itemData.img) {
+            cellHtml += `<img src="${itemData.img}" class="img-preview-matrix">
+              <div class="action-cell" style="margin-top: 5px;">
+                <button class="btn-edit" type="button" onclick="editMatrixData('${keyCategory}', '${item.rawDate}', '${area}')">Edit</button>
+                <button class="btn-delete" type="button" onclick="hapusMatrixData('${keyCategory}', '${item.rawDate}', '${area}', '${tbodyId}', ${isMonthly})">Hapus</button>
+              </div>`;
+          }
+          cellHtml += '</td>';
+          row.innerHTML += cellHtml;
+        });
+        tbody.appendChild(row);
+      });
+
+      if (countData === 0) {
+        tbody.innerHTML = `<tr><td colspan="${targetList.length + 1}" class="text-center" style="padding: 15px; color: #64748b;">Belum ada data laporan.</td></tr>`;
+      }
+    }
+
+    function editMatrixData(keyCategory, rawDate, area) {
+      document.getElementById(`tanggal${keyCategory}`).value = rawDate;
+      document.getElementById(`ULP${keyCategory}`).value = area;
+      alert(`Data dimuat ke form. Silakan sesuaikan foto lalu klik 'Simpan Data'.`);
+    }
+
+    function hapusMatrixData(keyCategory, rawDate, area, tbodyId, isMonthly) {
+      if (confirm(`Apakah Anda yakin ingin menghapus data ${area} untuk periode ini?`)) {
+        const formData = new FormData();
+        formData.append('action', 'delete_matrix');
+        formData.append('category', keyCategory);
+        formData.append('date_val', rawDate);
+        formData.append('area', area);
+
+        fetch('', { method: 'POST', body: formData })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            const formattedLabel = isMonthly ? formatIndoMonthYear(rawDate) : formatIndoDate(rawDate);
+            if (storeData[keyCategory][formattedLabel] && storeData[keyCategory][formattedLabel].areas[area]) {
+              storeData[keyCategory][formattedLabel].areas[area] = null;
+            }
+            renderTable(keyCategory, tbodyId, isMonthly);
+            updateDashboardStats();
+            alert('Data berhasil dihapus.');
+          }
+        });
+      }
+    }
+
+    function resetFilterMatrix(keyCategory, tbodyId, isMonthly) {
+      document.getElementById(`filterStart${keyCategory}`).value = '';
+      document.getElementById(`filterEnd${keyCategory}`).value = '';
+      renderTable(keyCategory, tbodyId, isMonthly);
+    }
+
+    /* MONITORING KESEHATAN */
+    function tambahDataKesehatan(event) {
+      event.preventDefault();
+      const id = document.getElementById('editKesehatanId').value;
+      const rawTanggal = document.getElementById('tanggalKesehatan').value;
+      const nama = document.getElementById('namaPersonil').value;
+      const area = document.getElementById('areaKesehatan').value;
+      const suhu = document.getElementById('suhuBadan').value;
+      const tensimeter = document.getElementById('hasilTensimeter').value;
+      const oxymeter = document.getElementById('oxymeter').value;
+      const fotoInput = document.getElementById('dokumentasiKesehatan');
+
+      const processSave = (imgSrc) => {
+        const formData = new FormData();
+        formData.append('action', 'save_kesehatan');
+        formData.append('id', id);
+        formData.append('tanggal', rawTanggal);
+        formData.append('nama', nama);
+        formData.append('area', area);
+        formData.append('suhu', suhu);
+        formData.append('tensimeter', tensimeter);
+        formData.append('oxymeter', oxymeter);
+        formData.append('foto', imgSrc);
+
+        fetch('', { method: 'POST', body: formData })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            alert('Data kesehatan berhasil disimpan ke database!');
+            location.reload();
+          }
+        });
+      };
+
+      if (fotoInput.files && fotoInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => processSave(e.target.result);
+        reader.readAsDataURL(fotoInput.files[0]);
+      } else {
+        processSave('');
+      }
+    }
+
+    function renderTableKesehatan() {
+      const tbody = document.getElementById('tabelBodyKesehatan');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      const searchNama = document.getElementById('filterNamaKesehatan').value.toLowerCase().trim();
+
+      const filteredData = dataKesehatanList.filter(item => item.nama.toLowerCase().includes(searchNama));
+      if (filteredData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding: 15px; color: #64748b;">Data personil tidak ditemukan.</td></tr>`;
+        return;
+      }
+
+      filteredData.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="text-center">${index + 1}</td>
+          <td class="text-center"><strong>${item.tanggal}</strong></td>
+          <td><strong>${item.nama}</strong></td>
+          <td>${item.area}</td>
+          <td class="text-center">${item.suhu} °C</td>
+          <td class="text-center">${item.tensimeter}</td>
+          <td class="text-center">${item.oxymeter} %</td>
+          <td class="text-center">${item.img ? `<img src="${item.img}" class="img-preview-matrix">` : '-'}</td>
+          <td class="text-center action-header">
+            <button class="btn-edit" type="button" onclick="editKesehatan('${item.id}')">Edit</button>
+            <button class="btn-delete" type="button" onclick="hapusKesehatan('${item.id}')">Hapus</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function editKesehatan(id) {
+      const item = dataKesehatanList.find(d => d.id == id);
+      if (!item) return;
+      document.getElementById('editKesehatanId').value = item.id;
+      document.getElementById('tanggalKesehatan').value = item.rawDate;
+      document.getElementById('namaPersonil').value = item.nama;
+      document.getElementById('areaKesehatan').value = item.area;
+      document.getElementById('suhuBadan').value = item.suhu;
+      document.getElementById('hasilTensimeter').value = item.tensimeter;
+      document.getElementById('oxymeter').value = item.oxymeter;
+      alert('Data dimuat ke form. Silakan sesuaikan lalu klik "Simpan Data Kesehatan".');
+    }
+
+    function hapusKesehatan(id) {
+      if (confirm('Apakah Anda yakin ingin menghapus data kesehatan ini?')) {
+        const formData = new FormData();
+        formData.append('action', 'delete_kesehatan');
+        formData.append('id', id);
+
+        fetch('', { method: 'POST', body: formData })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            alert('Data kesehatan berhasil dihapus.');
+            location.reload();
+          }
+        });
+      }
+    }
+
+    function resetFilterKesehatan() {
+      document.getElementById('filterNamaKesehatan').value = '';
+      renderTableKesehatan();
+    }
+
+    /* FUNGSI PRINT */
+    function cetakLaporanKesehatan() {
+      const tbodyContent = document.getElementById('tabelBodyKesehatan').cloneNode(true);
+      tbodyContent.querySelectorAll('.action-header').forEach(el => el.remove());
+
+      const printWindow = window.open('', '', 'height=650,width=900');
+      printWindow.document.write(`<html><head><title>LAPORAN MONITORING KESEHATAN</title><style>
+        body { font-family: sans-serif; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+        th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+        th { background-color: #0f46a0; color: white; text-align: center; }
+        .text-center { text-align: center; }
+        .img-preview-matrix { max-width: 80px; max-height: 60px; }
+      </style></head><body>
+        <h2>LAPORAN MONITORING KESEHATAN PERSONIL</h2>
+        <table><thead><tr><th>No</th><th>Tanggal</th><th>Nama Personil</th><th>Area</th><th>Suhu (°C)</th><th>Hasil Tensimeter</th><th>Oxymeter (%)</th><th>Dokumentasi</th></tr></thead>
+        <tbody>${tbodyContent.innerHTML}</tbody></table>
+      </body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+    }
+
+    function cetakLaporanDirect(theadId, tbodyId, judulLaporan) {
+      const theadClone = document.getElementById(theadId).cloneNode(true);
+      const tbodyClone = document.getElementById(tbodyId).cloneNode(true);
+      tbodyClone.querySelectorAll('.action-cell').forEach(el => el.remove());
+
+      const printWindow = window.open('', '', 'height=700,width=1200');
+      printWindow.document.write(`<html><head><title>${judulLaporan}</title><style>
+        @page { size: landscape; }
+        body { font-family: sans-serif; padding: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10px; }
+        th, td { border: 1px solid #000; padding: 4px; text-align: center; }
+        th { background-color: #1e3a8a; color: white; }
+        .img-preview-matrix { max-width: 60px; max-height: 45px; }
+      </style></head><body>
+        <h2>${judulLaporan}</h2>
+        <table>
+          <thead>${theadClone.innerHTML}</thead>
+          <tbody>${tbodyClone.innerHTML}</tbody>
+        </table>
+      </body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+    }
+  </script>
+</body>
+</html>
